@@ -1,4 +1,6 @@
 streamlit
+supabase
+requests
 google-generativeai
 python-docx
-requests
+python-multipart
