@@ -1,0 +1,173 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Observer - Digital Platform</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .upload-section {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+        .preview-img {
+            max-height: 400px;
+            object-fit: contain;
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+        }
+        .report-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container py-5">
+        <div class="text-center mb-5">
+            <h1 class="display-4 mb-3">📚 The Observer Platform</h1>
+            <p class="lead">Digitizing Learning Observations with AI</p>
+        </div>
+
+        <div class="upload-section">
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Observer ID</label>
+                        <input type="text" name="observer_id" class="form-control" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Learner Roll Number</label>
+                        <input type="text" name="roll_number" class="form-control" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Guardian Email</label>
+                        <input type="email" name="guardian_email" class="form-control" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Observation Sheet Image</label>
+                        <input type="file" name="file" class="form-control" accept="image/*" required>
+                    </div>
+                </div>
+
+                <div class="mt-4 text-center">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <span class="upload-text">Process Observation</span>
+                        <div class="spinner-border spinner-border-sm d-none" role="status"></div>
+                    </button>
+                </div>
+            </form>
+
+            <div class="mt-4 text-center" id="previewSection" style="display: none;">
+                <h5 class="mb-3">Upload Preview</h5>
+                <img src="#" class="preview-img w-100" id="imagePreview">
+            </div>
+        </div>
+
+        <div class="report-section" id="reportSection" style="display: none;">
+            <h4 class="mb-4">Processed Report</h4>
+            <div id="reportContent"></div>
+            <div class="mt-3">
+                <a id="downloadLink" href="#" class="btn btn-success">
+                    Download Full Report
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const form = e.target;
+            const formData = new FormData(form);
+            const btn = form.querySelector('button');
+            const spinner = btn.querySelector('.spinner-border');
+            const uploadText = btn.querySelector('.upload-text');
+
+            btn.disabled = true;
+            uploadText.textContent = 'Processing...';
+            spinner.classList.remove('d-none');
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    document.getElementById('reportSection').style.display = 'block';
+                    document.getElementById('downloadLink').href = data.report_url;
+                    displayReport(data.data);
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                alert('Failed to process form');
+            } finally {
+                btn.disabled = false;
+                uploadText.textContent = 'Process Observation';
+                spinner.classList.add('d-none');
+            }
+        });
+
+        function displayReport(data) {
+            const content = document.getElementById('reportContent');
+            let html = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Learner Details</h5>
+                        <p><strong>Roll Number:</strong> ${data.header.roll_number}</p>
+                        <p><strong>Observer ID:</strong> ${data.header.observer_id}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Session Details</h5>
+                        <p><strong>Date:</strong> ${data.header.date_time}</p>
+                        <p><strong>Mode:</strong> ${data.header.mode}</p>
+                    </div>
+                </div>
+                <h5 class="mt-4">Daily Observations</h5>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Subject</th>
+                            <th>Source</th>
+                            <th>Instructor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.time_slots.map(slot => `
+                            <tr>
+                                <td>${slot.time}</td>
+                                <td>${slot.taught}</td>
+                                <td>${slot.source}</td>
+                                <td>${slot.from_whom}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            content.innerHTML = html;
+        }
+
+        // Image preview handler
+        document.querySelector('input[type="file"]').addEventListener('change', function(e) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                document.getElementById('imagePreview').src = reader.result;
+                document.getElementById('previewSection').style.display = 'block';
+            }
+            reader.readAsDataURL(e.target.files[0]);
+        });
+    </script>
+</body>
+</html>
